@@ -22,10 +22,10 @@ def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbo
             print(f'abr_dt_from={abr_dt_from}, abr_dt_to={abr_dt_to}')
             print(f'abr_dt_from.timestamp()={abr_dt_from.timestamp()}, abr_dt_to.timestamp()={abr_dt_to.timestamp()}')
         if on_duty_time.timestamp() < abr_dt_from.timestamp():
-            if (off_duty_time.timestamp() > abr_dt_from.timestamp()) and (off_duty_time.timestamp() < abr_dt_to.timestamp()): # 正常上班，早下班
+            if (off_duty_time.timestamp() > abr_dt_from.timestamp()) and (off_duty_time.timestamp() <= abr_dt_to.timestamp()): 
                 if is_verbose:
                     print('正常上班，早下班')
-                actual_duty_time['off'] = abr_dt_from
+                actual_duty_time['off'] = abr_dt_from # 正常上班，早下班
         elif on_duty_time.timestamp() < abr_dt_to.timestamp():
             if off_duty_time.timestamp() <= abr_dt_to.timestamp(): # 休假，不用上下班
                 if is_verbose:
