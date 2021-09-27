@@ -30,8 +30,8 @@ def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbo
             if off_duty_time.timestamp() <= abr_dt_to.timestamp(): # 休假，不用上下班
                 if is_verbose:
                     print('休假，不用上下班')
-                actual_duty_time['on'] = dt.datetime.fromisoformat('2099-12-31T23:59:00')
-                actual_duty_time['off'] = dt.datetime.fromisoformat('2000-01-01T00:00:00')
+                actual_duty_time['on'] = None #dt.datetime.fromisoformat('2099-12-31T23:59:00')
+                actual_duty_time['off'] = None #dt.datetime.fromisoformat('2000-01-01T00:00:00')
             else:
                 if is_verbose:
                     print('晚上班，正常下班')
@@ -108,28 +108,31 @@ while(i < len(in_oa_df)):
 
     on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records)
 
-    if type(row['签到时间']) is dt.time and type(on_duty_time) is dt.datetime:
-        if(row['签到时间'] > on_duty_time.time()):
-            result *= 2
-            result_desc += f'上班迟到{time_diff_by_minute(row["签到时间"], on_duty_time.time())}分钟,'
-        else:
-            result_desc += '上班正常,'
+    if(on_duty_time == None and off_duty_time == None):
+        result_desc = '休假'
     else:
-        result *= 3
-        result_desc += '上班缺卡,'
-    if type(row['签退时间']) is dt.time and type(off_duty_time) is dt.datetime:
-        if row['签退时间'] < off_duty_time.time():
-            result *= 5
-            result_desc += f'下班早退{time_diff_by_minute(off_duty_time.time(), row["签退时间"])}分钟,'
+        if type(row['签到时间']) is dt.time and type(on_duty_time) is dt.datetime:
+            if(row['签到时间'] > on_duty_time.time()):
+                result *= 2
+                result_desc += f'上班迟到{time_diff_by_minute(row["签到时间"], on_duty_time.time())}分钟,'
+            else:
+                result_desc += '上班正常,'
         else:
-            result_desc += '下班正常'
-    else:
-        result *= 7
-        result_desc += '下班缺卡'
-    if result == 1:
-        result_desc = '正常'
-    if result % (3 * 7) == 0:
-        result_desc = '旷工'
+            result *= 3
+            result_desc += '上班缺卡,'
+        if type(row['签退时间']) is dt.time and type(off_duty_time) is dt.datetime:
+            if row['签退时间'] < off_duty_time.time():
+                result *= 5
+                result_desc += f'下班早退{time_diff_by_minute(off_duty_time.time(), row["签退时间"])}分钟,'
+            else:
+                result_desc += '下班正常'
+        else:
+            result *= 7
+            result_desc += '下班缺卡'
+        if result == 1:
+            result_desc = '正常'
+        if result % (3 * 7) == 0:
+            result_desc = '旷工'
     
     out_df.loc[cur_user, row['日期']] = result_desc
     i += 1
