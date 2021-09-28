@@ -11,11 +11,10 @@ def time_diff_by_minute(time1, time2):
         return None
 
 def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbose=False):
-    actual_duty_time = { 'on':  on_duty_time, 'off': off_duty_time }
-    if is_verbose:
-        print(f'on_duty_time={on_duty_time}, off_duty_time={off_duty_time}')
-        print(f'on_duty_time.timestamp()={on_duty_time.timestamp()}, off_duty_time.timestamp()={off_duty_time.timestamp()}')
     for index, abr in absence_records.iterrows():
+        if is_verbose:
+            print(f'on_duty_time={on_duty_time}, off_duty_time={off_duty_time}')
+            print(f'on_duty_time.timestamp()={on_duty_time.timestamp()}, off_duty_time.timestamp()={off_duty_time.timestamp()}')
         abr_dt_from = abr['dt_from'].to_pydatetime()
         abr_dt_to = abr['dt_to'].to_pydatetime()
         if is_verbose:
@@ -25,22 +24,23 @@ def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbo
             if (off_duty_time.timestamp() > abr_dt_from.timestamp()) and (off_duty_time.timestamp() <= abr_dt_to.timestamp()): 
                 if is_verbose:
                     print('正常上班，早下班')
-                actual_duty_time['off'] = abr_dt_from # 正常上班，早下班
+                off_duty_time = abr_dt_from # 正常上班，早下班
         elif on_duty_time.timestamp() < abr_dt_to.timestamp():
             if off_duty_time.timestamp() <= abr_dt_to.timestamp(): # 休假，不用上下班
                 if is_verbose:
                     print('休假，不用上下班')
-                actual_duty_time['on'] = None #dt.datetime.fromisoformat('2099-12-31T23:59:00')
-                actual_duty_time['off'] = None #dt.datetime.fromisoformat('2000-01-01T00:00:00')
+                on_duty_time = None #dt.datetime.fromisoformat('2099-12-31T23:59:00')
+                off_duty_time = None #dt.datetime.fromisoformat('2000-01-01T00:00:00')
+                break
             else:
                 if is_verbose:
                     print('晚上班，正常下班')
-                actual_duty_time['on'] = abr_dt_to # 晚上班，正常下班
+                on_duty_time = abr_dt_to # 晚上班，正常下班
 
     if is_verbose:
-        print(f'actual_duty_time[on]={actual_duty_time["on"]}, actual_duty_time[off]={actual_duty_time["off"]}')
+        print(f'actual_on_duty_time={on_duty_time}, actual_off_duty_time={off_duty_time}')
         print('-'*80)
-    return actual_duty_time['on'], actual_duty_time['off']
+    return on_duty_time, off_duty_time
 
 def mapping_color(cell_value):
     bg_color = ''
@@ -79,7 +79,7 @@ dates = in_oa_df['日期'].unique().tolist()
 in_hr_df = pd.read_excel(sys.argv[2], skiprows=1, header=None, usecols=[3,4,5], 
                          names=['name', 'dt_from', 'dt_to'], 
                          converters={'name': lambda n : re.search(r'^([^A-Za-z ]+)', n).group(1) if re.search(r'^([^A-Za-z ]+)', n) else n}
-                        )
+                        ).sort_values(by='dt_from', ascending=True)
 
 out_df = pd.DataFrame(index=[], columns=(['部门', '性别'] + dates))
 
@@ -106,7 +106,7 @@ while(i < len(in_oa_df)):
     on_duty_time = dt.datetime.fromisoformat(row['日期'] + ' ' + re.search(r'([0-9:]+)-', row['时间段']).group(1))
     off_duty_time = dt.datetime.fromisoformat(row['日期'] + ' ' + re.search(r'-([0-9:]+)', row['时间段']).group(1))
 
-    on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records)
+    on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, cur_user == '李萱')
 
     if(on_duty_time == None and off_duty_time == None):
         result_desc = '休假'
