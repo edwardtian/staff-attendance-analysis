@@ -10,8 +10,23 @@ def time_diff_by_minute(time1, time2):
     else:
         return None
 
-def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbose=False):
+def merge_possible_overlayed_abrs(absence_records):
+    new_abrs = []
     for index, abr in absence_records.iterrows():
+        if len(new_abrs) > 0:
+            if abr['dt_from'].timestamp() - new_abrs[len(new_abrs) - 1]['dt_to'].timestamp() < 0.1:
+                new_abrs[len(new_abrs) - 1]['dt_to'] = abr['dt_to']
+            else:
+                new_abrs.append({'dt_from': abr['dt_from'], 'dt_to': abr['dt_to']})
+        else:
+            new_abrs.append({'dt_from': abr['dt_from'], 'dt_to': abr['dt_to']})
+    return new_abrs
+
+def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbose=False):
+    last_abr_dt_from = None
+    last_abr_dt_to = None
+    
+    for abr in merge_possible_overlayed_abrs(absence_records):
         if is_verbose:
             print(f'on_duty_time={on_duty_time}, off_duty_time={off_duty_time}')
             print(f'on_duty_time.timestamp()={on_duty_time.timestamp()}, off_duty_time.timestamp()={off_duty_time.timestamp()}')
@@ -106,7 +121,7 @@ while(i < len(in_oa_df)):
     on_duty_time = dt.datetime.fromisoformat(row['日期'] + ' ' + re.search(r'([0-9:]+)-', row['时间段']).group(1))
     off_duty_time = dt.datetime.fromisoformat(row['日期'] + ' ' + re.search(r'-([0-9:]+)', row['时间段']).group(1))
 
-    on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, cur_user == '李萱')
+    on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records)
 
     if(on_duty_time == None and off_duty_time == None):
         result_desc = '休假'
