@@ -77,6 +77,12 @@ def mapping_color(cell_value):
 
     return new_style
 
+def handle_date_column(col):
+    if type(col) is dt.datetime:
+        return col.strftime('%Y-%m-%d')
+    else:
+        return col
+
 if len(sys.argv) != 3:
     print('Please provide excel file to be processed.')
     print('Usage: ')
@@ -86,7 +92,7 @@ if len(sys.argv) != 3:
 print(f'Handling {sys.argv[1]}(as OA data) and {sys.argv[2]}(as HR data) ...')
 
 in_oa_df = pd.read_excel(sys.argv[1], skiprows=4, usecols='A:T', 
-                         converters={'日期': lambda d : d.strftime('%Y-%m-%d')}
+                         converters={'日期': handle_date_column}
                         )
 dates = in_oa_df['日期'].unique().tolist()
 #in_oa_df = in_oa_df.sort_values(by='姓名', ascending=True)
@@ -126,19 +132,19 @@ while(i < len(in_oa_df)):
     if(on_duty_time == None and off_duty_time == None):
         result_desc = '休假'
     else:
-        if type(row['签到时间']) is dt.time and type(on_duty_time) is dt.datetime:
-            if(row['签到时间'] > on_duty_time.time()):
+        if type(row['签到时间']) is dt.datetime and type(on_duty_time) is dt.datetime:
+            if(row['签到时间'].time() > on_duty_time.time()):
                 result *= 2
-                result_desc += f'上班迟到{time_diff_by_minute(row["签到时间"], on_duty_time.time())}分钟,'
+                result_desc += f'上班迟到{time_diff_by_minute(row["签到时间"].time(), on_duty_time.time())}分钟,'
             else:
                 result_desc += '上班正常,'
         else:
             result *= 3
             result_desc += '上班缺卡,'
-        if type(row['签退时间']) is dt.time and type(off_duty_time) is dt.datetime:
-            if row['签退时间'] < off_duty_time.time():
+        if type(row['签退时间']) is dt.datetime and type(off_duty_time) is dt.datetime:
+            if row['签退时间'].time() < off_duty_time.time():
                 result *= 5
-                result_desc += f'下班早退{time_diff_by_minute(off_duty_time.time(), row["签退时间"])}分钟,'
+                result_desc += f'下班早退{time_diff_by_minute(off_duty_time.time(), row["签退时间"].time())}分钟,'
             else:
                 result_desc += '下班正常'
         else:
