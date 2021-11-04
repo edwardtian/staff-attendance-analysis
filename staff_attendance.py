@@ -4,6 +4,34 @@ import re
 import datetime as dt
 import pandas as pd
 
+def handle_datetime_column(col):
+    result = None
+    if type(col) is dt.datetime:
+        result = col
+    else:
+        try:
+            result = dt.datetime.fromisoformat(col)
+        except ValueError:
+            pass
+    return result
+
+def handle_date_column(col):
+    if type(col) is dt.datetime:
+        return col.strftime('%Y-%m-%d')
+    else:
+        return col
+
+def handle_time_column(col):
+    result = None
+    if type(col) is dt.time:
+        result = col
+    else:
+        try:
+            result = dt.datetime.strptime(col, '%H:%M:%S').time()
+        except ValueError:
+            pass
+    return result
+
 def time_diff_by_minute(time1, time2):
     if type(time1) is dt.time and type(time2) is dt.time:
         return (time1.hour - time2.hour) * 60 + (time1.minute - time2.minute)
@@ -55,7 +83,9 @@ def calc_actual_duty_time(on_duty_time, off_duty_time, absence_records, is_verbo
     if is_verbose:
         print(f'actual_on_duty_time={on_duty_time}, actual_off_duty_time={off_duty_time}')
         print('-'*80)
-    return on_duty_time, off_duty_time
+    return \
+        on_duty_time.time() if type(on_duty_time) is dt.datetime else on_duty_time, \
+        off_duty_time.time() if type(off_duty_time) is dt.datetime else off_duty_time
 
 def mapping_color(cell_value):
     bg_color = ''
@@ -76,12 +106,6 @@ def mapping_color(cell_value):
             new_style = f'background-color: {bg_color};'
 
     return new_style
-
-def handle_date_column(col):
-    if type(col) is dt.datetime:
-        return col.strftime('%Y-%m-%d')
-    else:
-        return col
 
 if len(sys.argv) != 3:
     print('Please provide excel file to be processed.')
@@ -124,27 +148,31 @@ while(i < len(in_oa_df)):
     result_desc = ''
 
     absence_records = in_hr_df.loc[lambda df: df['name'] == cur_user]
-    on_duty_time = dt.datetime.fromisoformat(row['日期'] + ' ' + re.search(r'([0-9:]+)-', row['时间段']).group(1))
-    off_duty_time = dt.datetime.fromisoformat(row['日期'] + ' ' + re.search(r'-([0-9:]+)', row['时间段']).group(1))
 
-    on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records)
+    on_duty_time = handle_datetime_column(row['日期'] + ' ' + re.search(r'([0-9:]+)-', row['时间段']).group(1))
+    off_duty_time = handle_datetime_column(row['日期'] + ' ' + re.search(r'-([0-9:]+)', row['时间段']).group(1))
+
+    on_duty_time, off_duty_time = calc_actual_duty_time(on_duty_time, off_duty_time, absence_records) # DEBUG_PARAMS: , cur_user == '任艳'
+
+    checkin_time = handle_time_column(row['签到时间'])
+    checkout_time = handle_time_column(row['签退时间'])
 
     if(on_duty_time == None and off_duty_time == None):
         result_desc = '休假'
     else:
-        if type(row['签到时间']) is dt.datetime and type(on_duty_time) is dt.datetime:
-            if(row['签到时间'].time() > on_duty_time.time()):
+        if type(checkin_time) is dt.time and type(on_duty_time) is dt.time:
+            if(checkin_time > on_duty_time):
                 result *= 2
-                result_desc += f'上班迟到{time_diff_by_minute(row["签到时间"].time(), on_duty_time.time())}分钟,'
+                result_desc += f'上班迟到{time_diff_by_minute(checkin_time, on_duty_time)}分钟,'
             else:
                 result_desc += '上班正常,'
         else:
             result *= 3
             result_desc += '上班缺卡,'
-        if type(row['签退时间']) is dt.datetime and type(off_duty_time) is dt.datetime:
-            if row['签退时间'].time() < off_duty_time.time():
+        if type(checkout_time) is dt.time and type(off_duty_time) is dt.time:
+            if checkout_time < off_duty_time:
                 result *= 5
-                result_desc += f'下班早退{time_diff_by_minute(off_duty_time.time(), row["签退时间"].time())}分钟,'
+                result_desc += f'下班早退{time_diff_by_minute(off_duty_time, checkout_time)}分钟,'
             else:
                 result_desc += '下班正常'
         else:
