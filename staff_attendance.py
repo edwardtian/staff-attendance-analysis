@@ -115,7 +115,7 @@ if len(sys.argv) != 3:
 
 print(f'Handling {sys.argv[1]}(as OA data) and {sys.argv[2]}(as HR data) ...')
 
-in_oa_df = pd.read_excel(sys.argv[1], skiprows=4, usecols='A:T', 
+in_oa_df = pd.read_excel(sys.argv[1], skiprows=5, usecols='A:T', 
                          converters={'日期': handle_date_column}
                         )
 dates = in_oa_df['日期'].unique().tolist()
